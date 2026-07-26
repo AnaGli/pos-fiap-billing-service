@@ -35,6 +35,13 @@ class ApproveBudgetRequest(BaseModel):
     provider_reference: str = Field(min_length=1, max_length=100)
 
 
+class PixPaymentRequest(BaseModel):
+    payer_email: str = Field(min_length=3, max_length=255)
+    payer_first_name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = Field(default=None, min_length=1, max_length=255)
+    expiration_time: str | None = Field(default=None, min_length=2, max_length=50)
+
+
 class RefundRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=255)
 
@@ -65,9 +72,49 @@ class PaymentResponse(BaseModel):
 
     provider: str
     provider_reference: str
+    provider_payment_reference: str | None = None
+    external_reference: str | None = None
+    payment_method_id: str | None = None
+    provider_status: str | None = None
+    provider_status_detail: str | None = None
+    qr_code: str | None = None
+    qr_code_base64: str | None = None
+    ticket_url: str | None = None
     amount: float
     status: PaymentStatus
     created_at: datetime
+
+
+class PixPaymentResponse(BaseModel):
+    budget_id: int
+    order_id: int
+    mercado_pago_order_id: str
+    mercado_pago_payment_id: str | None = None
+    status: str
+    status_detail: str | None = None
+    qr_code: str | None = None
+    qr_code_base64: str | None = None
+    ticket_url: str | None = None
+    external_reference: str
+
+
+class PaymentConfirmationResponse(BaseModel):
+    budget_id: int
+    order_id: int
+    mercado_pago_order_id: str
+    mercado_pago_payment_id: str | None = None
+    budget_status: BudgetStatus
+    payment_status: PaymentStatus
+    provider_status: str | None = None
+    provider_status_detail: str | None = None
+    event_published: bool
+
+
+class MercadoPagoConnectionCheckResponse(BaseModel):
+    environment: str
+    total_methods: int
+    pix_available: bool
+    methods: list[str]
 
 
 class BudgetResponse(BaseModel):

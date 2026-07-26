@@ -5,6 +5,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/billing_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-local:5672/
+      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
+      MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
     networks:
       - internal
     depends_on:
@@ -19,6 +21,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/billing_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-local:5672/
+      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
+      MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
     networks:
       - internal
       - workshop-net
@@ -37,6 +41,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/billing_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-local:5672/
+      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
+      MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
     networks:
       - internal
       - workshop-net
@@ -50,6 +56,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/billing_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-local:5672/
+      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
+      MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
     networks:
       - internal
       - workshop-net

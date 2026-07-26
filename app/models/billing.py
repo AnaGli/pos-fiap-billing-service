@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -24,6 +24,7 @@ class BudgetStatus(str, enum.Enum):
 
 
 class PaymentStatus(str, enum.Enum):
+    PENDING = "PENDING"
     APPROVED = "APPROVED"
     REFUNDED = "REFUNDED"
 
@@ -76,6 +77,15 @@ class Payment(Base):
     budget_id: Mapped[int] = mapped_column(ForeignKey("budgets.id"), nullable=False)
     provider: Mapped[str] = mapped_column(String(50), nullable=False, default="MERCADO_PAGO")
     provider_reference: Mapped[str] = mapped_column(String(100), nullable=False)
+    provider_payment_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    external_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    payment_method_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    provider_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    provider_status_detail: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    qr_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    qr_code_base64: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ticket_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     status: Mapped[PaymentStatus] = mapped_column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.APPROVED)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
