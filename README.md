@@ -57,6 +57,21 @@ python -m app.messaging.consumer
 5. Após confirmação do pagamento, publica `PaymentApproved`;
 6. Em compensação, registra estorno e publica `RefundProcessed`.
 
+## BDD
+
+O serviço possui um cenário BDD em Gherkin cobrindo o fluxo de:
+
+- recebimento do diagnóstico;
+- criação do orçamento;
+- abertura do Pix;
+- confirmação do pagamento;
+- compensação com estorno após falha de execução.
+
+Arquivos:
+
+- `tests/features/billing_pix_flow.feature`
+- `tests/test_bdd_billing.py`
+
 ## Endpoint Pix
 
 Criação da cobrança Pix:

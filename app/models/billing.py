@@ -29,17 +29,6 @@ class PaymentStatus(str, enum.Enum):
     REFUNDED = "REFUNDED"
 
 
-class CatalogItem(Base):
-    __tablename__ = "catalog_items"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    item_type: Mapped[CatalogItemType] = mapped_column(Enum(CatalogItemType), nullable=False)
-    price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    active: Mapped[bool] = mapped_column(nullable=False, default=True)
-
-
 class Budget(Base):
     __tablename__ = "budgets"
 

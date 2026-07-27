@@ -1,8 +1,9 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.catalog_store import CatalogItemDocument, get_catalog_store
 from app.integrations.mercado_pago import MercadoPagoClient, MercadoPagoError
-from app.models.billing import Budget, BudgetItem, BudgetStatus, CatalogItem, Payment, PaymentStatus, Refund
+from app.models.billing import Budget, BudgetItem, BudgetStatus, Payment, PaymentStatus, Refund
 from app.models.outbox_event import OutboxEvent
 from app.models.processed_event import ProcessedEvent
 from app.repositories import billing_repository
@@ -20,19 +21,20 @@ from app.schemas.billing import (
 class BillingService:
     def __init__(self, db: Session):
         self.db = db
+        self.catalog_store = get_catalog_store()
 
-    def create_catalog_item(self, data: CatalogItemCreate) -> CatalogItem:
-        existing = billing_repository.get_catalog_item_by_code(self.db, data.code)
+    def create_catalog_item(self, data: CatalogItemCreate) -> CatalogItemDocument:
+        existing = self.catalog_store.get_item_by_code(data.code)
         if existing is not None:
             raise HTTPException(status_code=409, detail="Catalog item already exists")
-        item = CatalogItem(**data.model_dump())
-        self.db.add(item)
-        self.db.commit()
-        self.db.refresh(item)
-        return item
+        item = CatalogItemDocument(**data.model_dump(), active=True)
+        try:
+            return self.catalog_store.create_item(item)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail="Catalog item already exists") from exc
 
-    def list_catalog(self) -> list[CatalogItem]:
-        return billing_repository.list_catalog(self.db)
+    def list_catalog(self) -> list[CatalogItemDocument]:
+        return self.catalog_store.list_items()
 
     def get_budget(self, budget_id: int) -> Budget:
         budget = billing_repository.get_budget_by_id(self.db, budget_id)
@@ -60,7 +62,7 @@ class BillingService:
         total = 0.0
 
         for service in event.services:
-            catalog_item = billing_repository.get_catalog_item_by_code(self.db, service.service_id)
+            catalog_item = self.catalog_store.get_item_by_code(service.service_id)
             if catalog_item is None or not catalog_item.active:
                 raise HTTPException(status_code=422, detail=f"Catalog item not found: {service.service_id}")
             line_total = float(catalog_item.price) * service.quantity
@@ -77,7 +79,7 @@ class BillingService:
             total += line_total
 
         for part in event.parts:
-            catalog_item = billing_repository.get_catalog_item_by_code(self.db, part.part_id)
+            catalog_item = self.catalog_store.get_item_by_code(part.part_id)
             if catalog_item is None or not catalog_item.active:
                 raise HTTPException(status_code=422, detail=f"Catalog item not found: {part.part_id}")
             line_total = float(catalog_item.price) * part.quantity

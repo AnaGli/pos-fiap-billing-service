@@ -44,6 +44,7 @@ jobs:
         env:
           PYTHONPATH: .
           DATABASE_URL: sqlite:///./test.db
+          CATALOG_BACKEND: memory
         run: |
           coverage run -m pytest
           coverage xml -o coverage.xml
@@ -136,6 +137,10 @@ jobs:
           kubectl create secret generic billing-service-secrets \
             --from-literal=DATABASE_URL="postgresql+psycopg://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@${{ secrets.DB_HOST }}:5432/${{ secrets.DB_NAME }}" \
             --from-literal=RABBITMQ_URL="${{ secrets.RABBITMQ_URL }}" \
+            --from-literal=CATALOG_BACKEND="dynamodb" \
+            --from-literal=AWS_REGION="${{ env.AWS_REGION }}" \
+            --from-literal=DYNAMODB_TABLE_NAME="${{ secrets.DYNAMODB_TABLE_NAME }}" \
+            --from-literal=DYNAMODB_ENDPOINT_URL="${{ secrets.DYNAMODB_ENDPOINT_URL }}" \
             --from-literal=MERCADO_PAGO_ACCESS_TOKEN="${{ secrets.MERCADO_PAGO_ACCESS_TOKEN }}" \
             --from-literal=MERCADO_PAGO_BASE_URL="${{ secrets.MERCADO_PAGO_BASE_URL }}" \
             --dry-run=client -o yaml | kubectl apply -f -

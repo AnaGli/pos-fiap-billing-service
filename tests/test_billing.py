@@ -1,9 +1,11 @@
 import os
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_billing_service.db"
+os.environ["CATALOG_BACKEND"] = "memory"
 
 from fastapi.testclient import TestClient
 
+from app.catalog_store import reset_catalog_store
 from app.api.routes.billing import get_mercado_pago_client
 from app.database import Base, SessionLocal, engine
 from app.main import app
@@ -24,6 +26,7 @@ DIAGNOSIS_EVENT = {
 def setup_function():
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    reset_catalog_store()
     client.post(
         "/catalog/items",
         json={"code": "oil-change", "name": "Troca de óleo", "item_type": "SERVICE", "price": 120.0},

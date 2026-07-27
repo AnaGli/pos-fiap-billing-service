@@ -13,7 +13,8 @@ class FakeResponse:
         return self._payload
 
 
-def test_create_pix_order_requires_access_token():
+def test_create_pix_order_requires_access_token(monkeypatch):
+    monkeypatch.delenv("MERCADO_PAGO_ACCESS_TOKEN", raising=False)
     client = MercadoPagoClient(access_token=None, base_url="https://api.test")
 
     with pytest.raises(MercadoPagoError, match="MERCADO_PAGO_ACCESS_TOKEN is not configured"):

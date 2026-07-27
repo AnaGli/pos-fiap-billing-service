@@ -1,10 +1,12 @@
 import os
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_billing_service.db"
+os.environ["CATALOG_BACKEND"] = "memory"
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.catalog_store import reset_catalog_store
 from app.database import Base, SessionLocal, engine
 from app.main import app
 from app.models.billing import Budget, BudgetStatus, Payment, PaymentStatus
@@ -26,6 +28,7 @@ DIAGNOSIS_EVENT = {
 def setup_function():
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    reset_catalog_store()
     client.post(
         "/catalog/items",
         json={"code": "oil-change", "name": "Troca de óleo", "item_type": "SERVICE", "price": 120.0},
@@ -162,4 +165,3 @@ def test_confirm_payment_pending_status_does_not_publish_event():
         assert response.payment_status == PaymentStatus.PENDING
         assert response.event_published is False
         assert db.query(OutboxEvent).count() == 0
-

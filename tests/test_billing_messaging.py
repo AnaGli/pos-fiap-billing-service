@@ -2,11 +2,13 @@ import os
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_billing_service.db"
 os.environ["RABBITMQ_URL"] = "amqp://guest:guest@localhost:5672/"
+os.environ["CATALOG_BACKEND"] = "memory"
 
 import json
 
 import pytest
 
+from app.catalog_store import reset_catalog_store
 from app.database import Base, SessionLocal, engine
 from app.events.handlers import handle_event
 from app.messaging import consumer
@@ -20,6 +22,7 @@ from app.models.outbox_event import OutboxEvent
 def setup_function():
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    reset_catalog_store()
 
 
 def test_rabbitmq_url_reads_env():

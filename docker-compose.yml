@@ -5,6 +5,12 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/billing_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-local:5672/
+      CATALOG_BACKEND: dynamodb
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      DYNAMODB_TABLE_NAME: billing_catalog
+      DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
       MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
       MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
     networks:
@@ -12,6 +18,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      dynamodb-local:
+        condition: service_started
 
   api:
     build: .
@@ -21,6 +29,12 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/billing_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-local:5672/
+      CATALOG_BACKEND: dynamodb
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      DYNAMODB_TABLE_NAME: billing_catalog
+      DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
       MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
       MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
     networks:
@@ -29,6 +43,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      dynamodb-local:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health')\""]
       interval: 10s
@@ -41,6 +57,12 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/billing_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-local:5672/
+      CATALOG_BACKEND: dynamodb
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      DYNAMODB_TABLE_NAME: billing_catalog
+      DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
       MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
       MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
     networks:
@@ -49,6 +71,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      dynamodb-local:
+        condition: service_started
 
   consumer:
     build: .
@@ -56,6 +80,12 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/billing_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-local:5672/
+      CATALOG_BACKEND: dynamodb
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      DYNAMODB_TABLE_NAME: billing_catalog
+      DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
       MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
       MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
     networks:
@@ -64,6 +94,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      dynamodb-local:
+        condition: service_started
 
   db:
     image: postgres:17
@@ -78,6 +110,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - internal
+
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    ports:
+      - "8006:8000"
     networks:
       - internal
 
