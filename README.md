@@ -63,6 +63,23 @@ Swagger:
 
 O serviço é executado exclusivamente via Docker.
 
+Antes de subir o ambiente, crie ou ajuste o arquivo `.env` na raiz do
+repositório com os valores necessários para execução local. Esse arquivo é
+usado pelo `docker compose` para carregar variáveis de observabilidade e da
+integração com o Mercado Pago.
+
+Conteúdo mínimo sugerido:
+
+```env
+DD_API_KEY=KEY
+DD_SITE=datadoghq.com
+DD_ENV=dev
+DD_VERSION=1.0.0
+```
+
+Além disso, para testar a integração de pagamento, preencha também as variáveis
+do Mercado Pago no mesmo `.env`, como `MERCADO_PAGO_ACCESS_TOKEN`.
+
 Subida local:
 
 ```bash
