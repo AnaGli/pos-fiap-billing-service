@@ -15,9 +15,20 @@ spec:
       containers:
         - name: publisher
           image: anaglislere/billing-service-tech-challenge:latest
-          command: ["python", "-m", "app.messaging.outbox_publisher"]
+          command: ["ddtrace-run", "python", "-m", "app.messaging.outbox_publisher"]
           envFrom:
             - secretRef:
                 name: billing-service-secrets
             - configMapRef:
                 name: billing-service-config
+          env:
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_SERVICE
+              value: billing-service-publisher
+            - name: DD_PSYCOPG_SERVICE
+              value: billing-service-db
+            - name: DD_TAGS
+              value: component:publisher

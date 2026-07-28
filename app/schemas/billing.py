@@ -19,6 +19,7 @@ class DiagnosisCompletedEvent(BaseModel):
     eventId: str
     eventType: str
     orderId: int
+    correlationId: str | None = None
     services: list[DiagnosisCompletedService]
     parts: list[DiagnosisCompletedPart] = []
     estimatedHours: int

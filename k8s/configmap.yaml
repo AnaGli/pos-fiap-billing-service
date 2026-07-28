@@ -6,3 +6,5 @@ data:
   DD_ENV: dev
   DD_SERVICE: billing-service
   DD_VERSION: "1.0.0"
+  DD_TRACE_ENABLED: "true"
+  DD_LOGS_INJECTION: "true"

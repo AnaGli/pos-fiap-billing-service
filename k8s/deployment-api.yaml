@@ -22,7 +22,7 @@ spec:
       containers:
         - name: api
           image: anaglislere/billing-service-tech-challenge:latest
-          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          command: ["ddtrace-run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
           ports:
             - containerPort: 8000
           envFrom:
@@ -30,6 +30,17 @@ spec:
                 name: billing-service-secrets
             - configMapRef:
                 name: billing-service-config
+          env:
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_SERVICE
+              value: billing-service
+            - name: DD_PSYCOPG_SERVICE
+              value: billing-service-db
+            - name: DD_TAGS
+              value: component:api
           livenessProbe:
             httpGet:
               path: /health

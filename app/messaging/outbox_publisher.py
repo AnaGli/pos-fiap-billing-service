@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
+from app.core.logging_config import ensure_correlation_id, set_log_context
 from app.database import SessionLocal
 from app.messaging.rabbitmq import RabbitMQPublisher
 from app.models.outbox_event import OutboxEvent
@@ -22,6 +23,11 @@ def publish_pending_events() -> int:
             .with_for_update(skip_locked=True)
         ).all()
         for event in events:
+            set_log_context(
+                correlation_id=event.payload.get("correlationId") or ensure_correlation_id(),
+                business_operation="publish_outbox_event",
+                order_id=event.aggregate_id,
+            )
             publisher.publish(
                 event.event_type,
                 {
@@ -29,6 +35,7 @@ def publish_pending_events() -> int:
                     "eventId": str(event.id),
                     "eventType": event.event_type,
                     "occurredAt": event.created_at.isoformat(),
+                    "correlationId": event.payload.get("correlationId") or ensure_correlation_id(),
                 },
             )
             event.published_at = datetime.now(timezone.utc)

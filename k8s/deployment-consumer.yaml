@@ -15,9 +15,20 @@ spec:
       containers:
         - name: consumer
           image: anaglislere/billing-service-tech-challenge:latest
-          command: ["python", "-m", "app.messaging.consumer"]
+          command: ["ddtrace-run", "python", "-m", "app.messaging.consumer"]
           envFrom:
             - secretRef:
                 name: billing-service-secrets
             - configMapRef:
                 name: billing-service-config
+          env:
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_SERVICE
+              value: billing-service-consumer
+            - name: DD_PSYCOPG_SERVICE
+              value: billing-service-db
+            - name: DD_TAGS
+              value: component:consumer

@@ -3,6 +3,8 @@ import os
 
 import pika
 
+from app.core.logging_config import ensure_correlation_id
+from app.core.tracing import activate_trace_from_headers, inject_trace_headers, service_name, tracer
 from app.messaging.topology import EXCHANGE_NAME, QueueBinding
 
 
@@ -42,15 +44,53 @@ class RabbitMQPublisher:
             channel = connection.channel()
             declare_topology(channel, [])
             channel.confirm_delivery()
-            channel.basic_publish(
-                exchange=EXCHANGE_NAME,
-                routing_key=routing_key_for(event_type),
-                body=json.dumps(message, default=str),
-                properties=pika.BasicProperties(
-                    content_type="application/json",
-                    delivery_mode=pika.DeliveryMode.Persistent,
-                ),
-                mandatory=True,
+            activate_trace_from_headers(message.get("traceHeaders"))
+            trace_context = (
+                tracer.trace(
+                    "rabbitmq.publish",
+                    service=service_name(),
+                    resource=event_type,
+                    span_type="worker",
+                )
+                if tracer is not None
+                else None
             )
+            publish_headers = {
+                "x-correlation-id": message.get("correlationId") or ensure_correlation_id(),
+                "x-event-type": event_type,
+            }
+            if trace_context is None:
+                headers = inject_trace_headers(publish_headers)
+                channel.basic_publish(
+                    exchange=EXCHANGE_NAME,
+                    routing_key=routing_key_for(event_type),
+                    body=json.dumps(message, default=str),
+                    properties=pika.BasicProperties(
+                        content_type="application/json",
+                        delivery_mode=pika.DeliveryMode.Persistent,
+                        headers=headers,
+                    ),
+                    mandatory=True,
+                )
+            else:
+                with trace_context:
+                    current_span = tracer.current_span() if tracer is not None else None
+                    if current_span is not None:
+                        current_span.set_tag("span.kind", "producer")
+                        current_span.set_tag("messaging.system", "rabbitmq")
+                        current_span.set_tag("messaging.destination", EXCHANGE_NAME)
+                        current_span.set_tag("messaging.rabbitmq.routing_key", routing_key_for(event_type))
+                    headers = inject_trace_headers(publish_headers)
+                    channel.basic_publish(
+                        exchange=EXCHANGE_NAME,
+                        routing_key=routing_key_for(event_type),
+                        body=json.dumps(message, default=str),
+                        properties=pika.BasicProperties(
+                            content_type="application/json",
+                            delivery_mode=pika.DeliveryMode.Persistent,
+                            headers=headers,
+                        ),
+                        mandatory=True,
+                    )
         finally:
             connection.close()

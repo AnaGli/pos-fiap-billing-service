@@ -13,6 +13,14 @@ services:
       DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
       MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
       MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
+      DD_SERVICE: billing-service-migrate
+      DD_ENV: ${DD_ENV:-dev}
+      DD_VERSION: ${DD_VERSION:-1.0.0}
+      DD_TRACE_ENABLED: "true"
+      DD_LOGS_INJECTION: "true"
+      DD_AGENT_HOST: dd-agent
+      DD_PSYCOPG_SERVICE: billing-service-db
+      DD_TAGS: component:migrate
     networks:
       - internal
     depends_on:
@@ -20,10 +28,12 @@ services:
         condition: service_healthy
       dynamodb-local:
         condition: service_started
+      dd-agent:
+        condition: service_started
 
   api:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8003
+    command: ddtrace-run uvicorn app.main:app --host 0.0.0.0 --port 8003
     ports:
       - "8003:8003"
     environment:
@@ -37,6 +47,14 @@ services:
       DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
       MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
       MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
+      DD_SERVICE: billing-service
+      DD_ENV: ${DD_ENV:-dev}
+      DD_VERSION: ${DD_VERSION:-1.0.0}
+      DD_TRACE_ENABLED: "true"
+      DD_LOGS_INJECTION: "true"
+      DD_AGENT_HOST: dd-agent
+      DD_PSYCOPG_SERVICE: billing-service-db
+      DD_TAGS: component:api
     networks:
       - internal
       - workshop-net
@@ -45,15 +63,17 @@ services:
         condition: service_completed_successfully
       dynamodb-local:
         condition: service_started
+      dd-agent:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health')\""]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 10
 
   publisher:
     build: .
-    command: python -m app.messaging.outbox_publisher
+    command: ddtrace-run python -m app.messaging.outbox_publisher
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/billing_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-local:5672/
@@ -65,6 +85,14 @@ services:
       DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
       MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
       MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
+      DD_SERVICE: billing-service-publisher
+      DD_ENV: ${DD_ENV:-dev}
+      DD_VERSION: ${DD_VERSION:-1.0.0}
+      DD_TRACE_ENABLED: "true"
+      DD_LOGS_INJECTION: "true"
+      DD_AGENT_HOST: dd-agent
+      DD_PSYCOPG_SERVICE: billing-service-db
+      DD_TAGS: component:publisher
     networks:
       - internal
       - workshop-net
@@ -73,10 +101,12 @@ services:
         condition: service_completed_successfully
       dynamodb-local:
         condition: service_started
+      dd-agent:
+        condition: service_started
 
   consumer:
     build: .
-    command: python -m app.messaging.consumer
+    command: ddtrace-run python -m app.messaging.consumer
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/billing_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-local:5672/
@@ -88,6 +118,14 @@ services:
       DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
       MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
       MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
+      DD_SERVICE: billing-service-consumer
+      DD_ENV: ${DD_ENV:-dev}
+      DD_VERSION: ${DD_VERSION:-1.0.0}
+      DD_TRACE_ENABLED: "true"
+      DD_LOGS_INJECTION: "true"
+      DD_AGENT_HOST: dd-agent
+      DD_PSYCOPG_SERVICE: billing-service-db
+      DD_TAGS: component:consumer
     networks:
       - internal
       - workshop-net
@@ -95,6 +133,8 @@ services:
       migrate:
         condition: service_completed_successfully
       dynamodb-local:
+        condition: service_started
+      dd-agent:
         condition: service_started
 
   db:
@@ -120,6 +160,27 @@ services:
       - "8006:8000"
     networks:
       - internal
+
+  dd-agent:
+    image: datadog/agent:7
+    environment:
+      DD_API_KEY: ${DD_API_KEY}
+      DD_SITE: ${DD_SITE:-datadoghq.com}
+      DD_ENV: ${DD_ENV:-dev}
+      DD_LOG_LEVEL: WARN
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - internal
+      - workshop-net
 
 networks:
   internal:

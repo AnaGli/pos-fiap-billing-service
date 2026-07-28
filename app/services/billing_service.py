@@ -2,6 +2,8 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.catalog_store import CatalogItemDocument, get_catalog_store
+from app.core.logging_config import ensure_correlation_id, set_log_context
+from app.core.tracing import capture_current_trace_headers
 from app.integrations.mercado_pago import MercadoPagoClient, MercadoPagoError
 from app.models.billing import Budget, BudgetItem, BudgetStatus, Payment, PaymentStatus, Refund
 from app.models.outbox_event import OutboxEvent
@@ -24,6 +26,7 @@ class BillingService:
         self.catalog_store = get_catalog_store()
 
     def create_catalog_item(self, data: CatalogItemCreate) -> CatalogItemDocument:
+        set_log_context(business_operation="billing_create_catalog_item", item_code=data.code)
         existing = self.catalog_store.get_item_by_code(data.code)
         if existing is not None:
             raise HTTPException(status_code=409, detail="Catalog item already exists")
@@ -34,21 +37,29 @@ class BillingService:
             raise HTTPException(status_code=409, detail="Catalog item already exists") from exc
 
     def list_catalog(self) -> list[CatalogItemDocument]:
+        set_log_context(business_operation="billing_list_catalog")
         return self.catalog_store.list_items()
 
     def get_budget(self, budget_id: int) -> Budget:
+        set_log_context(business_operation="billing_get_budget", budget_id=budget_id)
         budget = billing_repository.get_budget_by_id(self.db, budget_id)
         if budget is None:
             raise HTTPException(status_code=404, detail="Budget not found")
         return budget
 
     def get_budget_by_order_id(self, order_id: int) -> Budget:
+        set_log_context(business_operation="billing_get_budget_by_order", order_id=order_id)
         budget = billing_repository.get_budget_by_order_id(self.db, order_id)
         if budget is None:
             raise HTTPException(status_code=404, detail="Budget not found")
         return budget
 
     def intake_diagnosis_completed(self, event: DiagnosisCompletedEvent) -> Budget:
+        set_log_context(
+            correlation_id=event.correlationId or ensure_correlation_id(),
+            business_operation="billing_intake_diagnosis_completed",
+            order_id=event.orderId,
+        )
         if self.db.get(ProcessedEvent, event.eventId) is not None:
             return self.get_budget_by_order_id(event.orderId)
 
@@ -107,6 +118,8 @@ class BillingService:
                     "orderId": event.orderId,
                     "budgetId": budget.id,
                     "totalAmount": total,
+                    "correlationId": event.correlationId or ensure_correlation_id(),
+                    "traceHeaders": capture_current_trace_headers(),
                 },
             )
         )
@@ -115,6 +128,11 @@ class BillingService:
         return self.get_budget(budget.id)
 
     def approve_budget(self, budget_id: int, data: ApproveBudgetRequest) -> Budget:
+        set_log_context(
+            correlation_id=ensure_correlation_id(),
+            business_operation="billing_approve_budget",
+            budget_id=budget_id,
+        )
         budget = self.get_budget(budget_id)
         if budget.status != BudgetStatus.WAITING_APPROVAL:
             raise HTTPException(status_code=409, detail="Budget cannot be approved from current status")
@@ -136,6 +154,8 @@ class BillingService:
                     "orderId": budget.order_id,
                     "budgetId": budget.id,
                     "paymentStatus": "APPROVED",
+                    "correlationId": ensure_correlation_id(),
+                    "traceHeaders": capture_current_trace_headers(),
                 },
             )
         )
@@ -148,6 +168,11 @@ class BillingService:
         data: PixPaymentRequest,
         mercado_pago: MercadoPagoClient,
     ) -> PixPaymentResponse:
+        set_log_context(
+            correlation_id=ensure_correlation_id(),
+            business_operation="billing_create_pix_payment",
+            budget_id=budget_id,
+        )
         budget = self.get_budget(budget_id)
         if budget.status == BudgetStatus.PAID:
             raise HTTPException(status_code=409, detail="Budget is already paid")
@@ -197,6 +222,11 @@ class BillingService:
         return self._build_pix_response(budget, latest_payment)
 
     def refund_by_order_id(self, order_id: int, data: RefundRequest) -> Budget:
+        set_log_context(
+            correlation_id=ensure_correlation_id(),
+            business_operation="billing_refund_by_order",
+            order_id=order_id,
+        )
         budget = self.get_budget_by_order_id(order_id)
         if budget.status != BudgetStatus.PAID:
             raise HTTPException(status_code=409, detail="Refund can only be processed for paid budgets")
@@ -209,7 +239,12 @@ class BillingService:
             OutboxEvent(
                 event_type="RefundProcessed",
                 aggregate_id=str(order_id),
-                payload={"orderId": order_id, "reason": data.reason},
+                payload={
+                    "orderId": order_id,
+                    "reason": data.reason,
+                    "correlationId": ensure_correlation_id(),
+                    "traceHeaders": capture_current_trace_headers(),
+                },
             )
         )
         self.db.commit()
@@ -220,6 +255,11 @@ class BillingService:
         budget_id: int,
         mercado_pago: MercadoPagoClient,
     ) -> PaymentConfirmationResponse:
+        set_log_context(
+            correlation_id=ensure_correlation_id(),
+            business_operation="billing_confirm_pix_payment",
+            budget_id=budget_id,
+        )
         budget = self.get_budget(budget_id)
         latest_payment = budget.payments[-1] if budget.payments else None
         if latest_payment is None:
@@ -255,6 +295,8 @@ class BillingService:
                             "orderId": budget.order_id,
                             "budgetId": budget.id,
                             "paymentStatus": "APPROVED",
+                            "correlationId": ensure_correlation_id(),
+                            "traceHeaders": capture_current_trace_headers(),
                         },
                     )
                 )
