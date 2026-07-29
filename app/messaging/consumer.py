@@ -39,10 +39,11 @@ def main() -> None:
                 resource=event.get("eventType", "unknown"),
                 span_type="worker",
             ) as span:
+                routing_key = getattr(method, "routing_key", "unknown")
                 span.set_tag("span.kind", "consumer")
                 span.set_tag("messaging.system", "rabbitmq")
-                span.set_tag("messaging.destination", method.routing_key if method is not None else "unknown")
-                span.set_tag("messaging.rabbitmq.queue", method.routing_key if method is not None else "unknown")
+                span.set_tag("messaging.destination", routing_key)
+                span.set_tag("messaging.rabbitmq.queue", routing_key)
                 with SessionLocal() as db:
                     handle_event(db, event)
             ch.basic_ack(delivery_tag=method.delivery_tag)
