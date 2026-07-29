@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-service-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: billing-service-consumer
+  template:
+    metadata:
+      labels:
+        app: billing-service-consumer
+    spec:
+      containers:
+        - name: consumer
+          image: anaglislere/billing-service-tech-challenge:latest
+          command: ["ddtrace-run", "python", "-m", "app.messaging.consumer"]
+          envFrom:
+            - secretRef:
+                name: billing-service-secrets
+            - configMapRef:
+                name: billing-service-config
+          env:
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_SERVICE
+              value: billing-service-consumer
+            - name: DD_PSYCOPG_SERVICE
+              value: billing-service-db
+            - name: DD_TAGS
+              value: component:consumer

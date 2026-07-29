@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-service-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: billing-service-api
+  template:
+    metadata:
+      labels:
+        app: billing-service-api
+    spec:
+      initContainers:
+        - name: migration
+          image: anaglislere/billing-service-tech-challenge:latest
+          command: ["sh", "-c", "alembic upgrade head"]
+          envFrom:
+            - secretRef:
+                name: billing-service-secrets
+      containers:
+        - name: api
+          image: anaglislere/billing-service-tech-challenge:latest
+          command: ["ddtrace-run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: billing-service-secrets
+            - configMapRef:
+                name: billing-service-config
+          env:
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_SERVICE
+              value: billing-service
+            - name: DD_PSYCOPG_SERVICE
+              value: billing-service-db
+            - name: DD_TAGS
+              value: component:api
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5

@@ -1,0 +1,9 @@
+[run]
+omit =
+    app/alembic/*
+    app/alembic/**
+
+[report]
+omit =
+    app/alembic/*
+    app/alembic/**
